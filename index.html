@@ -187,5 +187,31 @@ function run6(ch){const r=picked,x=r.x,a=lvl,S=+$('ss').value,de=a.de,wk=a.L=='�
  s+=`<ul><li>三才配置：${E[x.t]}-${E[x.r]}-${E[x.d]}，${['','半吉','吉（含逆生）','大吉'][x.lv]}。</li><li>補元素落點：${hit.length?hit.join('、')+'的五行屬於補元素':'人格、地格都沒有落在補元素上，補益主要靠用字'}。</li>${r.rm?`<li style='color:#d9534f'>提醒：${r.rm}，屬半吉以下。</li>`:''}</ul>`;
  s+=`<p class='ok'>綜合結論：八字原判${a.L}，主補${E[W[0]]}、次補${E[W[1]]}。${vd}</p><p class='mu'>加成規則：人格與地格各 1，總格與外格各 0.5，每個用字 0.5，天格屬先天，不計入。這是簡化的估算，僅供參考。</p>`;
  $('o6').innerHTML=s}
+let LAST=null,LC={};
+const RSM=Object.fromEntries([...'水4艸6心4手4犬4示5衣6辵7玉5火4金8阜8邑7肉6木4土3日4月4山3禾5石5竹6米6豆7糸6言7貝7車7門8雨8魚11馬10鳥11虫6口3女3人2子3宀3彳3刀2力2又2大3寸3小3巾3广3弓3戈4文4方4欠4止4毛4氏4爪4父4牛4片4牙4田5目5矛5矢5皮5皿5立5穴5羽6耳6聿6舟6色6行6西6見7谷7走7足7身7酉7里7長8青8非8食9首9香9骨10高10龍16冫2'.matchAll(/(\D)(\d+)/g)].map(m=>[m[1],+m[2]])),REM={};
+'木艸禾竹米豆麥麻:0,火日心赤:1,土山田皿:2,金石白刀戈矛:3,水雨魚冫:4'.split(',').forEach(g=>{const p=g.split(':');[...p[0]].forEach(c=>REM[c]=+p[1])});
+const VAR={'氵':'水','艹':'艸','忄':'心','扌':'手','犭':'犬','礻':'示','衤':'衣','辶':'辵','王':'玉','灬':'火','阝':'阜'},
+NEG=['死','病','苦','凶','災','惡','哭','敗','破','亡','悲','孤','貧','賤','毒','殘','傷','獄','愁','憂','怨','弱','亂','斷','絕','殺','刑'],
+POS=['美','善','光明','吉','福','智','賢','富','榮','順','樂','誠','仁','德','祥','盛','安','貴','興'],
+qs=t=>String(t||'').replace(/['"<>]/g,'');
+function tone(m){if(!m)return'未取得字義，請自行查證寓意。';const n=NEG.filter(w=>m.includes(w)),p=POS.filter(w=>m.includes(w));return n.length?`字義含偏負面詞（${n.join('、')}），建議再斟酌寓意。`:p.length?`字義偏正面（${p.join('、')}）。`:'字義沒有明顯的正負面關鍵字，請自行判斷寓意。'}
+function zxe(d){const z=zx(d);return z=='忌'?`生肖忌用：部首「${d.r}」或字本身落在忌用字根（${ZX.ji.split('').join(' ')}），建議避開。`:z=='喜'?`生肖喜用：部首「${d.r}」或字本身落在喜用字根，可優先考慮。`:`生肖中性：部首「${d.r}」不在喜、忌字根內。`}
+function analyzeC(d,ns){return `<div style='background:var(--hi);border-radius:8px;padding:6px 10px;margin:6px 0'><b>${d.c}</b>：康熙筆畫 ${d.n}；部首「${d.r}」；五行屬${E[d.e]}（依部首判定）。<br>字義：${d.m||'未取得'}<br>內涵：${tone(d.m)}<br>${zxe(d)}${ns.includes(d.n)?'':'<br><b>注意：此字 '+d.n+' 畫，不符合目前需要的 '+ns.join('、')+' 畫，不會出現在選字清單。</b>'}</div>`}
+function addForm(ns){return `<div style='border:1px dashed var(--ln);border-radius:8px;padding:8px;margin-top:10px'><b>新增字</b>（字庫沒有想用的字；目前需要 ${ns.join('、')} 畫）<br><input id='nc' size='2' placeholder='字'><button onclick='lookC()'>查詢字義與筆畫</button> <span class='mu'>需連線；查不到時可手動填寫</span><br>部首 <input id='nr' size='2'> 五行 <select id='ne'>${[0,1,2,3,4].map(i=>'<option value='+i+'>'+E[i]+'</option>').join('')}</select> 康熙筆畫 <input id='nn' type='number' style='width:64px'> <button onclick='addC()'>加入字庫並分析</button><div id='na' class='mu'></div>${LAST?analyzeC(LAST,ns):''}</div>`}
+async function lookC(){const c=[...$('nc').value.trim()][0],na=$('na');if(!c)return;na.textContent='查詢中…';
+ try{let j;try{j=await (await fetch('https://www.moedict.tw/a/'+encodeURIComponent(c)+'.json')).json()}catch(e){j=await (await fetch('https://www.moedict.tw/uni/'+encodeURIComponent(c))).json()}
+  let rad=j.radical||'';rad=VAR[rad]||rad;const rs=RSM[rad],nr=j.non_radical_stroke_count,kx=rs!=null&&nr!=null?rs+nr:null,h=(j.heteronyms||[])[0]||{},df=(h.definitions||[])[0],m=df?String(df.def).replace(/<[^>]+>|[`~]/g,''):'';
+  LC={c:c,m:m};$('nr').value=rad;$('nn').value=kx||j.stroke_count||'';if(REM[rad]!=null)$('ne').value=REM[rad];
+  na.textContent='已查到：教育部筆畫 '+j.stroke_count+'，推算康熙筆畫 '+(kx==null?'無法推算':kx)+'；部首與五行為推算值，請核對後再按「加入字庫並分析」。字義：'+(m||'無')}
+ catch(e){na.textContent='查詢失敗（需要連線，或此環境不允許外部連線），請手動填寫部首、五行與康熙筆畫。'}}
+function addC(){const c=[...$('nc').value.trim()][0],r=$('nr').value.trim(),e=+$('ne').value,n=+$('nn').value;if(!c||!r||!n){$('na').textContent='請填入字、部首與筆畫。';return}
+ DB.push(LAST={c:c,r:r[0],e:e,n:n,m:LC.c==c?LC.m:''});run4()}
+function run4(){
+ const r=picked;if(!r)return;const ns=[r.a];if(r.b!=null)ns.push(r.b);
+ let s=(r.rm?`<p style='color:#d9534f'>提醒：此組合的${r.rm}，屬半吉以下。</p>`:'')+`<p>${r.b==null?'單名':'雙名'}，名首字 ${r.a} 畫${r.b==null?'':'，名次字 '+r.b+' 畫'}。以下列出字庫中所有符合筆畫的字，不論五行，並依五行分組。黃底：符合補元素（${E[W[0]]}、${E[W[1]]}）；紅框：生肖忌用字根；標「生肖喜」：喜用字根；滑鼠停在字上可看字義。每個位置各點選一字。</p>`;
+ ns.forEach((n,k)=>{const l=DB.filter(d=>d.n==n);s+=`<p><b>第 ${k+1} 字（${n} 畫）共 ${l.length} 字</b></p>`;
+  if(!l.length)s+=`<p class='mu'>字庫尚無此筆畫的字，請用下方「新增字」加入。</p>`;
+  E.split('').forEach((x,i)=>{const g=l.filter(d=>d.e==i);if(g.length)s+=`<div><span class='mu'>${x}：</span>${g.map(d=>`<span class='ch ${W.includes(d.e)?'hit':''}${zx(d)=='忌'?' ng':''}' title='${qs(d.m)}' id='c${k}${d.c}' data-c='${d.c}' onclick='choose(${k},this.dataset.c)'>${d.c}<br><small>${d.r}部·${E[d.e]}${zt(d)}</small></span>`).join('')}</div>`})});
+ s+=addForm(ns);$('o4').innerHTML=s;run5()}
 initL();s2l();run1();
 </script></body></html>
