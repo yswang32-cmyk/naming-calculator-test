@@ -27,7 +27,7 @@ ul{margin:4px 0;padding-left:20px}
 <section><h2>步驟 1　輸入出生時間，排八字（子初／子正）</h2>
 國曆 <input id="dt" type="date" onchange="s2l()"> 時間 <input id="tm" type="time"><br>農曆 <input id="ly" type="number" style="width:80px" onchange="l2s()">年 <select id="lm" onchange="l2s()"></select>月 <label><input type="checkbox" id="lp" onchange="l2s()">閏月</label> <input id="ld" type="number" min="1" max="30" style="width:60px" onchange="l2s()">日　性別 <select id="sex"><option>男</option><option>女</option></select>
 <button onclick="run1()">排盤</button>
-<p class="mu">國曆與農曆欄位會互相換算（農曆為國曆當日的日期，子初換日者 23 點後出生，農曆日常記為次日）。月柱依節氣的日期推算（精度到日），出生日剛好是節氣當天時請用萬年曆核對。僅在 23:00 至 23:59 出生時，子初與子正兩種排法才會不同。支援 2001–2099 年。</p>
+<p class="mu">國曆與農曆欄位會互相換算（農曆為國曆當日的日期，子初換日者 23 點後出生，農曆日常記為次日）。年柱與月柱依節氣的交節時間（以台灣時間 UTC+8 計，天文公式估算，可能有十幾分鐘誤差）判斷，出生時間接近交節時請用萬年曆核對。僅在 23:00 至 23:59 出生時，子初與子正兩種排法才會不同。支援 2001–2099 年。</p>
 <div id="o1" class="sc"></div></section>
 
 <section><h2>步驟 2　補元素判斷</h2>
@@ -40,7 +40,7 @@ ul{margin:4px 0;padding-left:20px}
 <p class="mu">單姓適用。常見姓氏會自動帶入筆畫，其他姓氏請自行輸入康熙字典筆畫。</p>
 <div id="o3" class="sc"></div></section>
 
-<section><h2>步驟 4　生肖姓名學：喜忌用字根</h2><div id="o4z" class="sc"><span class="mu">請先完成步驟 1。</span></div></section>
+<section><h2>步驟 4　生肖姓名學：喜忌用字根</h2><label>生肖分界：<select id="zm" onchange="zmChg()"><option value="0">立春（依八字年柱）</option><option value="1">農曆新年</option></select></label><div id="o4z" class="sc"><span class="mu">請先完成步驟 1。</span></div></section>
 <section><h2>步驟 5　依筆畫選字</h2><div id="o4" class="sc"><span class="mu">請先在步驟 3 點選一組五格配置。</span></div></section>
 <section><h2>步驟 6　部首與五行，補充命盤參考</h2><div id="o5" class="sc"><span class="mu">請先在步驟 5 選字。</span></div></section>
 <section><h2>步驟 7　姓名搭配八字，綜合命盤</h2><div id="o6" class="sc"><span class="mu">請先完成選字。</span></div></section>
@@ -59,9 +59,13 @@ const $=id=>document.getElementById(id),g=n=>T[(n>81?n-80:n)-1],gx=n=>TXT[g(n)],
 let charts=[],lvl=[],W=[],picked=null,sel=[];
 
 function termDay(y,m){const Y=y%100,L=m<=2?Math.floor((Y-1)/4):Math.floor(Y/4);return Math.floor(Y*.2422+JIE[m-1])-L}
-function bazi(y,m,d,h,mode){
- const ye=(m<2||(m==2&&d<termDay(y,2)))?y-1:y,ys=(ye-4)%10,yb=(ye-4)%12;
- const b=d>=termDay(y,m)?m%12:(m==1?12:m-1)%12;
+function sunLon(ms){const T=(ms/864e5+2440587.5-2451545)/36525,r=Math.PI/180,L0=280.46646+36000.76983*T+.0003032*T*T,M=(357.52911+35999.05029*T-.0001537*T*T)*r,C=(1.914602-.004817*T)*Math.sin(M)+(.019993-.000101*T)*Math.sin(2*M)+.000289*Math.sin(3*M),O=(125.04-1934.136*T)*r;return(((L0+C-.00569-.00478*Math.sin(O))%360)+360)%360}
+function termMs(y,m){const tg=(285+30*(m-1))%360;let t=Date.UTC(y,m-1,termDay(y,m),0);for(let i=0;i<6;i++){let df=tg-sunLon(t);df=((df+540)%360)-180;t+=df/360*365.2422*864e5}return t}
+function jq(y,m,d,h,mi){const tn=['小寒','立春','驚蛟','清明','立夏','芒種','小暑','立秋','白露','寒露','立冬','大雪'][m-1],tm=termMs(y,m),bt=Date.UTC(y,m-1,d,h,mi)-288e5,tz=new Date(tm+288e5).toISOString().slice(5,16).replace('T',' ');return `<p class='mu'>本月節氣「${tn}」交節時間約 ${tz}（台灣時間，天文公式估算）。${Math.abs(bt-tm)<108e5?"<b style='color:#d9534f'>出生時間距交節不到 3 小時，年月柱可能在邊界，請用萬年曆核對。</b>":''}</p>`}
+function zmChg(){if(!charts.length)return;renderZx();if(picked)run4()}
+function bazi(y,m,d,h,mode,mi){
+ const bt=Date.UTC(y,m-1,d,h,mi||0)-288e5,ye=bt<termMs(y,2)?y-1:y,ys=(ye-4)%10,yb=(ye-4)%12;
+ const b=bt>=termMs(y,m)?m%12:(m==1?12:m-1)%12;
  const ms=((ys%5)*2+2+((b-2+12)%12))%10;
  const n=Math.round((Date.UTC(y,m-1,d)-Date.UTC(2000,0,1))/864e5);
  let i=(((54+n)%60)+60)%60;if(mode==0&&h==23)i=(i+1)%60;
@@ -71,13 +75,13 @@ const P=(c,i)=>G[c.s[i]]+Z[c.b[i]];
 function run1(){
  const[v,t]=[$("dt").value,$("tm").value];if(!v||!t)return;
  const[y,m,d]=v.split("-").map(Number),[h,mi]=t.split(":").map(Number);
- charts=[bazi(y,m,d,h,0),bazi(y,m,d,h,1)];
+ charts=[bazi(y,m,d,h,0,mi),bazi(y,m,d,h,1,mi)];
  let s='<table><tr><th>排法</th><th>年柱</th><th>月柱</th><th>日柱</th><th>時柱</th><th>日主</th></tr>';
  ["子初換日（23:00換日）","子正換日（00:00換日）"].forEach((n,k)=>{const c=charts[k];
   s+=`<tr><td>${n}</td>${[0,1,2,3].map(i=>`<td>${P(c,i)}</td>`).join("")}<td>${G[c.s[2]]}${E[c.s[2]>>1]}（${c.s[2]%2?"陰":"陽"}）</td></tr>`});
  s+='</table>';
  s+=h==23?'<p class="mu">23 點出生，兩種排法的日柱與時柱不同，步驟 2 起請選一種繼續。</p>':'<p class="mu">此時間兩種排法結果相同。</p>';
- $("o1").innerHTML=`<p>性別：${$('sex').value}　農曆 ${$('ly').value} 年${$('lp').checked?'閏':''}${$('lm').value} 月 ${$('ld').value} 日</p>`+s;run2()}
+ $("o1").innerHTML=`<p>性別：${$('sex').value}　農曆 ${$('ly').value} 年${$('lp').checked?'閏':''}${$('lm').value} 月 ${$('ld').value} 日</p>`+s+jq(y,m,d,h,mi);run2()}
 function analyze(c){
  const dm=c.s[2],de=dm>>1,sc=[0,0,0,0,0],w=[1,1,0,1.2],bw=[1,2,1.5,1],R=e=>(e-de+5)%5;
  [0,1,3].forEach(i=>sc[c.s[i]>>1]+=w[i]);
@@ -118,10 +122,11 @@ let ZX={xi:'',ji:''};
 const rt=a=>[...new Set(a.map(i=>ZR[i]).join(''))].join('');
 function zx(d){const s=d.r+d.c;if([...s].some(c=>ZX.ji.includes(c)))return'忌';if([...s].some(c=>ZX.xi.includes(c)))return'喜';return''}
 function zt(d){const z=zx(d);return z?'·生肖'+z:''}
-function renderZx(){const b=charts[+$('mode').value].b[0],A=a=>a.map(i=>ZN[i]+'('+Z[i]+')').join('、')||'—',san=[(b+4)%12,(b+8)%12],he=[(13-b)%12],ch=[(b+6)%12],hai=[(19-b)%12],xg=(XM[b]||[]).concat([4,6,9,11].includes(b)?[b]:[]);
+function lunBranch(){const v=$('dt').value;return v?((lunarOf(new Date(v+'T00:00:00Z')).y-4)%12+12)%12:0}
+function renderZx(){const b1=charts[+$('mode').value].b[0],b2=lunBranch(),b=$('zm').value=='1'?b2:b1,A=a=>a.map(i=>ZN[i]+'('+Z[i]+')').join('、')||'—',san=[(b+4)%12,(b+8)%12],he=[(13-b)%12],ch=[(b+6)%12],hai=[(19-b)%12],xg=(XM[b]||[]).concat([4,6,9,11].includes(b)?[b]:[]);
  const xi=[...new Set(san.concat(he))],ji=[...new Set(ch.concat(hai,xg))];ZX.xi=rt(xi)+ZH[b];ZX.ji=rt(ji);
  const row=(n,a,t)=>`<tr><td>${n}</td><td>${A(a)}</td><td>${t}</td><td>${rt(a)||'—'}</td></tr>`;
- $('o4z').innerHTML=`<p>生肖：<b>${ZN[b]}</b>（年支${Z[b]}，依八字年柱，以立春為界；若以農曆新年為界，生肖可能不同）</p><table><tr><th>關係</th><th>生肖</th><th>性質</th><th>對應字根</th></tr>${row('三合',san,'喜')}${row('六合',he,'喜')}${row('六沖',ch,'忌')}${row('六害',hai,'忌')}${row('三刑／自刑',xg,'忌')}<tr><td>本生肖喜好</td><td>${ZN[b]}</td><td>喜</td><td>${ZH[b]}</td></tr></table><p><b>喜用字根：</b>${ZX.xi.split('').join(' ')}</p><p><b>忌用字根：</b>${ZX.ji.split('').join(' ')}</p><p class='mu'>字體屬性說明：字本身或其部首落在喜用字根者標「生肖喜」（三合、六合生肖的字根，加上本生肖愛吃、愛棲息的部首）；落在忌用字根者標「生肖忌」（沖、害、刑生肖的字根）；兩者同時出現時以忌為先。部首分類以字庫的部首欄為準，此為通行說法，各流派另有細項，僅供選字參考。</p>`}
+ $('o4z').innerHTML=`<p>生肖：<b>${ZN[b]}</b>（年支${Z[b]}，${$('zm').value=='1'?'以農曆新年為界':'依八字年柱，以立春為界'}）</p>${b1!=b2?`<p style='color:#d9534f'>注意：此出生時間以立春算屬${ZN[b1]}，以農曆新年算屬${ZN[b2]}，請確認你採用的分界。</p>`:''}<table><tr><th>關係</th><th>生肖</th><th>性質</th><th>對應字根</th></tr>${row('三合',san,'喜')}${row('六合',he,'喜')}${row('六沖',ch,'忌')}${row('六害',hai,'忌')}${row('三刑／自刑',xg,'忌')}<tr><td>本生肖喜好</td><td>${ZN[b]}</td><td>喜</td><td>${ZH[b]}</td></tr></table><p><b>喜用字根：</b>${ZX.xi.split('').join(' ')}</p><p><b>忌用字根：</b>${ZX.ji.split('').join(' ')}</p><p class='mu'>字體屬性說明：字本身或其部首落在喜用字根者標「生肖喜」（三合、六合生肖的字根，加上本生肖愛吃、愛棲息的部首）；落在忌用字根者標「生肖忌」（沖、害、刑生肖的字根）；兩者同時出現時以忌為先。部首分類以字庫的部首欄為準，此為通行說法，各流派另有細項，僅供選字參考。</p>`}
 function addC(){const c=$('nc').value.trim(),r=$('nr').value.trim()||c,e=+$('ne').value,n=+$('nn').value;if(!c||!n)return;DB.push({c:[...c][0],r:r[0],e,n});run4()}
 function plain(a){const de=a.de,e=i=>E[i],p=(de+4)%5,o=(de+1)%5,c=(de+2)%5,k=(de+3)%5,t=a.sc.reduce((x,y)=>x+y),r=(a.sc[de]+a.sc[p])/t,wk=r<.5,mid=a.L.startsWith('中和');
  const li=[`<b>先看你是誰：</b>八字裡的日主是「${e(de)}」，可以想成命盤的主角本人，其他的字就是身邊的人與環境，有的幫忙，有的消耗。`,
@@ -225,5 +230,107 @@ function run4(){
   s+=`<p><b>建議搭配（喜用字 × 喜用字，補元素優先）</b></p>`+(P.length?window._pr.map((p,i)=>`<span class='ch ${p[2]>=3?'hit':''}' onclick='pickPair(${i})'>${p[0].c}${p[1].c}<br><small>${E[p[0].e]}${E[p[1].e]}</small></span>`).join(''):`<p class='mu'>兩個字位的喜用字庫沒有可搭配的組合，可展開中性字，或用下方新增字。</p>`)}
  ns.forEach((n,k)=>{s+=`<p><b>第 ${k+1} 字（${n} 畫）生肖喜用字庫，共 ${X[k].length} 字</b></p>`+(X[k].length?grp(X[k],k):`<p class='mu'>字庫沒有此筆畫的喜用字，可展開中性字，或用下方新增字。</p>`)+`<details><summary>中性字（${N[k].length}）</summary>${grp(N[k],k)}</details><details><summary>生肖忌用字（${J[k].length}，不建議）</summary>${grp(J[k],k)}</details>`});
  s+=addForm(ns);$('o4').innerHTML=s;run5()}
+function analyze(c){
+ const dm=c.s[2],de=dm>>1,sc=[0,0,0,0,0],w=[1,1,0,1.2],bw=[1,2,1.5,1],R=e=>(e-de+5)%5;
+ [0,1,3].forEach(i=>sc[c.s[i]>>1]+=w[i]);
+ c.b.forEach((b,i)=>{const h=HID[b],r=h.length==1?[1]:h.length==2?[.7,.3]:[.6,.3,.1];[...h].forEach((x,k)=>sc[G.indexOf(x)>>1]+=bw[i]*r[k])});
+ const tot=sc.reduce((a,b)=>a+b),yin=(de+4)%5,fu=sc[de]+sc[yin],ra=fu/tot,wk=ra<.5,L=wk?'身弱':'身旺',close=Math.abs(ra-.5)<=.05,shi=(de+1)%5,cai=(de+2)%5,guan=(de+3)%5;
+ const mr=R(ZE[c.b[1]]),dr=R(ZE[c.b[2]]),hr=R(c.s[3]>>1),f=r=>r==0||r==4?'生扶日主':'耗洩剋日主';
+ let xi,ji;if(wk){xi=[yin,de];ji=[guan,cai,shi]}else{xi=[guan,shi,cai].sort((p,q)=>sc[p]-sc[q]);ji=[yin,de]}
+ const stems=[c.s[0]>>1,c.s[1]>>1,c.s[3]>>1],jd=ji.map(e=>({e,sh:sc[e]/tot,tou:stems.includes(e)})),jt=jd.reduce((a,x)=>a+x.sh,0);
+ const basis=[`日主：${G[dm]}${E[de]}，${dm%2?'陰':'陽'}${E[de]}，是命盤的主角，以下都以它為中心判斷。`,
+  `月令：${Z[c.b[1]]}月，五行屬${E[ZE[c.b[1]]]}，對日主是${REL[mr]}，${mr==0||mr==4?'得令':'失令'}（月令權重加倍）。`,
+  `日支：${Z[c.b[2]]}，五行屬${E[ZE[c.b[2]]]}，對日主是${REL[dr]}，${f(dr)}。`,
+  `時干：${G[c.s[3]]}，五行屬${E[c.s[3]>>1]}，對日主是${REL[hr]}，${f(hr)}。`,
+  `日主力量：生扶（${E[de]}與${E[yin]}）${fu.toFixed(1)}，耗洩剋 ${(tot-fu).toFixed(1)}，生扶占 ${(ra*100).toFixed(0)}%，判為${L}${close?'（接近中和）':''}。`,
+  `五行分數：${E.split('').map((x,i)=>x+sc[i].toFixed(1)).join('　')}。`];
+ return{L,close,prim:xi[0],sec:xi[1],third:xi[2],xi,avoid:ji,jd,jt,basis,sc,de,ra,tot,stems}}
+const lvJ=s=>s>=.25?'偏重，影響較大':s>=.15?'中等':s>=.05?'輕微':'幾乎沒有';
+function plain(a){const de=a.de,e=i=>E[i],wk=a.L=='身弱',r=a.ra,li=[`<b>先看你是誰：</b>八字裡的日主是「${e(de)}」，可以想成命盤的主角本人，其他的字就是身邊的人與環境，有的幫忙，有的消耗。`,
+  `<b>再看雙方力量：</b>幫手（同類的${e(de)}，和生出${e(de)}的${e((de+4)%5)}）約占 ${(r*100).toFixed(0)}%；壓力（自己付出的${e((de+1)%5)}、自己掌管的${e((de+2)%5)}、管著自己的${e((de+3)%5)}）約占 ${((1-r)*100).toFixed(0)}%。`,
+  wk?`<b>身弱，為什麼要補${a.xi.map(e).join('、')}：</b>幫手比壓力少，主角吃力，就像一個人手不夠、又要扛很多事。「${e(a.prim)}」生出「${e(de)}」，是後援與資源（生我）；「${e(a.sec)}」跟你同類，是並肩的夥伴（同我）。`:
+  `<b>身旺，為什麼要用${a.xi.map(e).join('、')}：</b>幫手太多、力量太滿，就像水庫要洩洪。「${e((de+1)%5)}」是你生出來的，讓力量從這裡洩出去（我生）；「${e((de+2)%5)}」是你能掌握的成果，把力量消耗在事情上（我剋）；「${e((de+3)%5)}」是管著你的規則與壓力，讓太滿的力量有約束（剋我）。`,
+  `<b>為什麼要避開忌神 ${a.avoid.map(e).join('、')}：</b>${wk?'這些元素會繼續消耗或壓制主角，本來就吃力，再多就更辛苦。':'這些元素只會讓力量更滿，已經太強，再加就更難平衡。'}`];
+ if(a.close)li.push(`<b>提醒：</b>目前接近平衡，身弱身旺的差距不大，補的方向有但力道不必大，補過頭反而失衡，建議再請老師細看。`);
+ li.push(`<b>怎麼補：</b>主要靠名字的五格（人格、地格）落在喜用神的五行，其次是用字本身的五行，並避開忌神。`);
+ return `<div style='background:var(--hi);border-radius:8px;padding:8px 12px;margin:8px 0'><b>白話說明：為什麼要補這些元素</b><ul>${li.map(x=>'<li>'+x+'</li>').join('')}</ul></div>`}
+function run2(){
+ if(!charts.length){$('o2').innerHTML='<span class="mu">請先在步驟 1 排盤。</span>';return}
+ const c=charts[+$('mode').value],a=analyze(c),de=a.de;lvl=a;W=[a.prim,a.sec];
+ const rows=[0,1,2,3,4].map(i=>{const rl=REL[(i-de+5)%5],ro=a.xi.includes(i)?'喜用神':a.avoid.includes(i)?'忌神':'—',tg=a.stems.includes(i)?'是':'否';return `<tr><td>${E[i]}</td><td>${rl}</td><td>${a.sc[i].toFixed(1)}</td><td>${(a.sc[i]/a.tot*100).toFixed(0)}%</td><td>${tg}</td><td><b>${ro}</b></td></tr>`}).join('');
+ const nm=l=>l.map(e=>E[e]+'（'+REL[(e-de+5)%5].split('(')[0]+'）').join('、'),has=a.jd.some(x=>x.sh>=.15||(x.tou&&x.sh>=.1));
+ $('o2').innerHTML=`<ul>${a.basis.map(x=>`<li>${x}</li>`).join('')}</ul>
+ <table><tr><th>五行</th><th>與日主關係</th><th>分數</th><th>占比</th><th>透干</th><th>喜忌</th></tr>${rows}</table>
+ <p class="ok">判斷結果：日主${E[de]}，${a.L}。${a.L=='身弱'?'用「生我、同我」的五行幫扶':'用「剋我、我生、我剋」的五行洩洪消耗'}。<br>喜用神（優先順序）：${nm(a.xi)}。<br>忌神：${nm(a.avoid)}。</p>
+ <p><b>忌神有無的判斷：</b>${has?'命盤中<b>有明顯的忌神</b>':'命盤中<b>沒有明顯的忌神</b>'}，忌神合計占 ${(a.jt*100).toFixed(0)}%。</p>
+ <ul>${a.jd.map(x=>`<li>${E[x.e]}（${REL[(x.e-de+5)%5].split('(')[0]}）占 ${(x.sh*100).toFixed(0)}%，${x.tou?'透出天干':'只藏在地支'}，${lvJ(x.sh)}。</li>`).join('')}</ul>
+ <p class="mu">忌神認定：單一忌神占比達 15% 以上，或透干且達 10% 以上，視為「有明顯忌神」；25% 以上偏重。身弱的忌神是剋我、我生、我剋，身旺的忌神是生我、同我。</p>
+ ${plain(a)}
+ <p class="mu">判斷規則：生扶（同我與生我）占 50% 以上為身旺，以下為身弱。分數為字數權重加藏干，月令×2、日支×1.5、時干×1.2。身弱時前兩名為主補、次補；身旺時以命盤中較缺的喜用神優先。接近分界時，建議再請老師細看。</p>`;
+ renderZx();if(picked)run3()}
+const TS=[['比肩','劫財'],['食神','傷官'],['偏財','正財'],['七殺','正官'],['偏印','正印']],HW=h=>h.length==1?[1]:h.length==2?[.7,.3]:[.6,.3,.1],PW=[.8,1.2,1,1],NM=['年','月','日','時'],ST=['旺','相','死','囚','休'],SM={旺:.5,相:.25,休:0,囚:-.2,死:-.3},EC=['#3b8c5a','#d9534f','#b8893a','#8a8f98','#3b7dd8'],cl=(x,a=0,b=100)=>Math.max(a,Math.min(b,x)),f1=x=>x.toFixed(1),sm=a=>a.reduce((x,y)=>x+y,0),tsn=(d,s)=>TS[((s>>1)-(d>>1)+5)%5][d%2==s%2?0:1];
+function rels(B){const o={he:[],san:[],hui:[],cho:[],hai:[],xi:[]},n=B.length,HE=[[0,1,2],[2,11,0],[3,10,1],[4,9,3],[5,8,4],[6,7,2]],HAI=[[0,7],[1,6],[2,5],[3,4],[8,11],[9,10]];
+ for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){const a=B[i],b=B[j],pr=(x,y)=>(a==x&&b==y)||(a==y&&b==x);
+  HE.forEach(h=>{if(pr(h[0],h[1]))o.he.push({p:[i,j],z:h[2]})});HAI.forEach(h=>{if(pr(h[0],h[1]))o.hai.push({p:[i,j]})});
+  if((a+6)%12==b)o.cho.push({p:[i,j]});if(pr(0,3))o.xi.push({p:[i,j],t:'子卯相刑'});if(a==b&&[4,6,9,11].includes(a))o.xi.push({p:[i,j],t:'自刑'})}
+ [[2,5,8],[1,10,7]].forEach(g=>{const ps=B.map((b,i)=>g.includes(b)?i:-1).filter(i=>i>=0),u=ps.filter((i,k)=>ps.findIndex(x=>B[x]==B[i])==k);if(u.length==3)o.xi.push({p:u,t:'三刑齊全'});else if(u.length==2)o.xi.push({p:u,t:'半刑（'+g.map(z=>Z[z]).join('')+'缺一）'})});
+ [[[8,0,4],4,'san'],[[11,3,7],0,'san'],[[2,6,10],1,'san'],[[5,9,1],3,'san'],[[2,3,4],0,'hui'],[[5,6,7],1,'hui'],[[8,9,10],3,'hui'],[[11,0,1],4,'hui']].forEach(([g,z,k])=>{const ps=g.map(x=>B.indexOf(x)),h=ps.filter(i=>i>=0);if(h.length==3)o[k].push({p:h,z,g,full:1});else if(h.length==2)o[k].push({p:h,z,g,full:0})});return o}
+function ana2(c){
+ const S=c.s,B=c.b,dm=S[2],de=dm>>1,m1=ZE[B[1]],rr=g=>((g>>1)-de+5)%5,hid=B.map(b=>[...HID[b]].map((x,k)=>({g:G.indexOf(x),w:HW(HID[b])[k],k})));
+ const R=rels(B),dmg=[0,0,0,0],fac=[1,1,1,1],bon=[0,0,0,0,0],br=hid.map(h=>{const a=[0,0,0,0,0];h.forEach(x=>a[x.g>>1]+=12*x.w);return a}),stem=[0,0,0,0,0];
+ S.forEach(s=>stem[s>>1]+=10);const cut=(i,v,d)=>{fac[i]-=v;if(d)dmg[i]=1};
+ R.cho.forEach(x=>x.p.forEach(i=>cut(i,.2,1)));R.hai.forEach(x=>x.p.forEach(i=>cut(i,.08,1)));R.xi.forEach(x=>x.p.forEach(i=>cut(i,x.t=='三刑齊全'?.1:.06,1)));
+ R.he.forEach(x=>{const[i,j]=x.p,ok=m1==x.z&&!dmg[i]&&!dmg[j]&&S.some(s=>(s>>1)==x.z);x.ok=ok;if(ok){bon[x.z]+=.4*(sm(br[i])+sm(br[j]));cut(i,.4);cut(j,.4)}else{cut(i,.05);cut(j,.05)}});
+ ['san','hui'].forEach(k=>R[k].forEach(x=>{if(!x.full)return;x.ok=x.g.includes(B[1])&&x.p.every(i=>!dmg[i]);if(x.ok)x.p.forEach(i=>{bon[x.z]+=.3*sm(br[i]);cut(i,.3)})}));
+ const chg=[0,1,2,3,4].map(e=>sm(br.map((a,i)=>a[e]*fac[i]))+bon[e]-sm(br.map(a=>a[e]))),raw=[0,1,2,3,4].map(e=>stem[e]+sm(br.map(a=>a[e])));
+ const mod=raw.map((v,e)=>SM[ST[(e-m1+5)%5]]*v),rt=[0,0,0,0,0],rootI=S.map((s,i)=>{const e=s>>1,r=Math.max(0,...hid.map(h=>h.filter(x=>x.g>>1==e).reduce((m,x)=>Math.max(m,[1,.5,.25][x.k]),0)));rt[e]+=r>0?3*r:-2;return r});
+ const s1=raw.map((v,e)=>v+mod[e]+rt[e]),cr=s1.map((v,e)=>.1*s1[(e+4)%5]-.1*s1[(e+3)%5]),s3=s1.map((v,e)=>raw[e]==0?0:Math.max(0,v+cr[e]+chg[e])),t3=sm(s3),fin=s3.map(v=>v/t3*100);
+ const stA=ST[(de-m1+5)%5],A=cl({旺:20,相:15,休:10,囚:5,死:2}[stA]+sm(hid[1].filter(x=>[0,4].includes(rr(x.g))).map(x=>5*x.w)),0,25);
+ const B2=cl(12.5*sm(hid.map((h,j)=>sm(h.filter(x=>x.g>>1==de).map(x=>[1,.5,.25][x.k]*PW[j]*(dmg[j]?.5:1))))),0,25);
+ const C=cl(5*S.filter((s,i)=>i!=2&&[0,4].includes(rr(s))).length+6*sm(hid.map((h,j)=>sm(h.filter(x=>rr(x.g)==4).map(x=>x.w*PW[j])))),0,25);
+ const has=r=>S.some((s,i)=>i!=2&&rr(s)==r)||hid.some(h=>h.some(x=>rr(x.g)==r)),press=sm(S.map((s,i)=>i!=2&&[1,2,3].includes(rr(s))?5*(rootI[i]>0?1:.5):0))+4*sm(hid.map((h,j)=>sm(h.filter(x=>[1,2,3].includes(rr(x.g))).map(x=>x.w*PW[j]*(dmg[j]?.7:1))))),off=Math.min(6,(has(3)&&has(4)?3:0)+(has(1)&&has(4)?2:0)+(has(2)&&has(0)?2:0)),D=cl(25-(press-off),0,25),T=A+B2+C+D;
+ const band=T<=20?'極弱（另檢查從格）':T<=35?'身弱':T<=45?'偏弱':T<=55?'中和':T<=70?'偏強':T<=85?'身旺':'極旺（另檢查特殊格局）';
+ const tn=[];[0,1,2,3].forEach(i=>{if(i!=2)tn.push({n:tsn(dm,S[i]),pos:NM[i]+'干',v:5,e:S[i]>>1})});hid.forEach((h,j)=>h.forEach(x=>tn.push({n:tsn(dm,x.g),pos:NM[j]+'支'+['本氣','中氣','餘氣'][x.k],v:x.w*PW[j]*6,e:x.g>>1})));
+ const fy=[0,1,2,3,4].map(e=>{const nd=(50-T)/50;return cl(50+[30,-25,-30,-35,40][rr(e*2)]*nd)}),b1=B[1],hot=[5,6,7].includes(b1),cold=[11,0,1].includes(b1);
+ const tj=(cold?[55,90,55,25,10]:hot?[25,10,35,55,90]:[2,3,4].includes(b1)?[50,60,45,45,45]:[50,60,40,50,55]).slice(),tp=fin[1]-fin[4];if([1,4].includes(b1))tj[1]+=10;if([7,10].includes(b1))tj[4]+=10;if(tp>15){tj[4]+=25;tj[3]+=8;tj[1]-=15}else if(tp<-15){tj[1]+=25;tj[0]+=8;tj[4]-=15}const tjj=tj.map(v=>cl(v));
+ let cf=null;[0,1,2,3,4].forEach(a=>{const b=(a+2)%5,mn=Math.min(fin[a],fin[b]);if(mn>=15){const cn=cl(mn/25,0,1),sc=cn*(fin[a]+fin[b]);if(!cf||sc>cf.sc)cf={a,b,m:(a+1)%5,cn,sc}}});const tg=Array(5).fill(50);if(cf)tg[cf.m]=cl(50+40*cf.cn);
+ const wk=T<=50,ds=[0,1,2,3,4].filter(e=>wk?[1,2,3].includes(rr(e*2)):[0,4].includes(rr(e*2))).sort((p,q)=>fin[q]-fin[p]),vec=Array(5).fill(40);
+ [[ds[0],1],[ds[1],.5]].forEach(([p,w])=>{if(fin[p]<15)return;vec[(p+3)%5]+=50*w;vec[(p+1)%5]+=40*w});if(fin[ds[0]]>=15){vec[ds[0]]=10;if(fin[ds[1]]>=15)vec[ds[1]]=Math.min(vec[ds[1]],20)}else vec.fill(50);
+ const by=vec.map((v,e)=>cl(fin[ds[0]]<15?v:v-(fy[e]<50?(50-fy[e])*.5:0)));
+ const near=T>=46&&T<=55,sn=Math.abs(tp)>20||[0,6].includes(b1);let wt={fy:40,tj:20,tg:cf?15:5,by:25};if(sn){wt.tj+=10;wt.fy-=10}if(near){wt.fy-=10;wt.by+=5;wt.tj+=5}if(!cf)wt.fy+=10;
+ const tw=sm(Object.values(wt)),why=[`扶抑：日主強度 ${f1(T)} 分，是最基本的判斷，預設權重最高`,sn?'調候：出生季節或水火偏寒偏熱明顯，調候權重上調 10':'調候：季節寒熱不極端，維持一般權重',cf?`通關：命局有${E[cf.a]}剋${E[cf.b]}的對立，保留通關權重`:'通關：沒有明顯的五行對立，權重降到最低並歸還給扶抑',near?'日主接近中和，扶抑的指向力下降，權重減 10，病藥與調候各加 5':'日主偏離中和，扶抑的指向明確'];
+ const cp=[0,1,2,3,4].map(e=>(fy[e]*wt.fy+tjj[e]*wt.tj+tg[e]*wt.tg+by[e]*wt.by)/tw),o=[0,1,2,3,4].sort((p,q)=>cp[q]-cp[p]),role={};
+ o.forEach((e,i)=>{role[e]=i==0?'第一用神':i==1?(cp[e]>=55?'第二喜神':'閒神'):i==2?(cp[e]>=55?'輔助喜神':'閒神'):null});
+ const low=o.slice(3).reverse();low.forEach((e,i)=>{role[e]=cp[e]<45?(i==0?'主要忌神':'次要忌神'):'閒神'});
+ return{S,B,de,m1,hid,R,raw,mod,rt,cr,chg,fin,stA,A,B2,C,D,T,band,tn,fy,tj:tjj,tg,by,cf,ds,wt,why,cp,o,role,rootI,dmg,wk}}
+function bar(l,v,mx,col,t){return `<div style='display:flex;align-items:center;gap:6px;margin:2px 0'><span style='width:2.4em'>${l}</span><div style='flex:1;background:var(--ln);border-radius:4px'><div style='width:${cl(v/mx*100)}%;background:${col};height:14px;border-radius:4px'></div></div><span style='width:5em'>${t||f1(v)}</span></div>`}
+const tbl=(h,rows)=>`<div class='sc'><table><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr>${rows.map(r=>`<tr>${r.map(x=>`<td>${x}</td>`).join('')}</tr>`).join('')}</table></div>`;
+function run2(){
+ if(!charts.length){$('o2').innerHTML='<span class="mu">請先在步驟 1 排盤。</span>';return}
+ const mi=+$('mode').value,c=charts[mi],a=ana2(c),base=analyze(c),S=c.s,B=c.b,de=a.de,dm=S[2],rr=g=>((g>>1)-de+5)%5,pn=p=>p.map(i=>NM[i]+'支').join('、');
+ const xi=a.o.filter(e=>['第一用神','第二喜神','輔助喜神'].includes(a.role[e])),ji=a.o.filter(e=>['主要忌神','次要忌神'].includes(a.role[e]));
+ lvl=Object.assign({},base,{prim:a.o[0],sec:a.o[1],xi,avoid:ji,wk:a.wk,L:a.T<=45?'身弱':a.T<=55?'中和偏弱':'身旺'});W=[a.o[0],a.o[1]];
+ let h=`<p class='mu'>時間基準：採用${mi?'子正換日（00:00 換日）':'子初換日（23:00 換日）'}，以台灣時間（UTC+8）排盤，未做真太陽時修正（出生地經度與時區差異，在時辰交界附近可能影響時柱）。${charts[0].s.join()!=charts[1].s.join()?'兩種換日的盤不同，請切換上方「採用排法」分別查看，不可混為一談。':''}本步驟的分數都是自訂的估算模型，不是傳統命理的公認公式。</p>`;
+ h+=`<h3>一、四柱與藏干十神</h3>`+tbl(['四柱','天干','天干五行','天干十神','地支','地支五行','藏干（五行／十神／通根）'],[0,1,2,3].map(i=>[NM[i]+'柱',G[S[i]],E[S[i]>>1],i==2?'日主':tsn(dm,S[i]),Z[B[i]],E[ZE[B[i]]],a.hid[i].map(x=>G[x.g]+E[x.g>>1]+'/'+tsn(dm,x.g)).join('、')]))+`<p class='mu'>日主 ${G[dm]}${E[de]}（${dm%2?'陰':'陽'}）。天干透出：${[0,1,3].map(i=>G[S[i]]).join('、')}；日主通根：${a.hid.map((x,j)=>x.some(y=>y.g>>1==de)?NM[j]+'支'+Z[B[j]]+(a.dmg[j]?'（受刑沖害）':''):'').filter(Boolean).join('、')||'無'}。</p>`;
+ h+=`<h3>二、五行力量量化（100 分制，估算值）</h3>`+tbl(['五行','原始分數','季節修正（'+Z[B[1]]+'月）','通根修正','生剋修正','刑沖合害修正','最終分數','比例'],[0,1,2,3,4].map(e=>[E[e],f1(a.raw[e]),a.raw[e]?a.stA&&ST[(e-a.m1+5)%5]+' '+f1(a.mod[e]):'—',a.raw[e]?f1(a.rt[e]):'—',a.raw[e]?f1(a.cr[e]):'—',a.raw[e]?f1(a.chg[e]):'—','<b>'+f1(a.fin[e])+'</b>',f1(a.fin[e])+'%']))+`<p class='mu'>原始分數：天干每字 10，地支每支 12 分依本氣、中氣、餘氣（6:3:1）分配；季節修正依旺相休囚死（旺 +50%、相 +25%、休 0、囚 −20%、死 −30%）；通根修正：天干有根加、無根減；生剋修正：受生加、受剋減各 10%；刑沖合害修正見第五段。最後把總和正規化為 100，原始為 0 的五行不給虛構分數。分數不等於喜用神適合度。</p>`;
+ h+=`<h3>三、日主強弱（100 分制）</h3>`+tbl(['評估項目','分數','滿分','判斷依據'],[['得令',f1(a.A),25,`${Z[a.m1===undefined?B[1]:B[1]]}月，${E[de]}在當令五行${E[a.m1]}的狀態為「${a.stA}」，並計入月令藏干中的印、比劫`],['通根',f1(a.B2),25,'日主同類藏干（本氣 1、中氣 0.5、餘氣 0.25），乘以柱位權重，受刑沖害者減半'],['生扶',f1(a.C),25,'印、比劫透干各 5，加上地支藏干中的印（比劫的根已算在通根，不重複）'],['剋洩耗抵銷',f1(a.D),25,'25 減去官殺、食傷、財的有效力量；殺印相生、印制食傷、比劫奪財可抵銷最多 6'],['<b>合計</b>','<b>'+f1(a.T)+'</b>',100,`<b>${a.band}</b>`]])+`<p>判定：<b>${a.band}</b>。${a.T<=45?'日主得令、通根與生扶偏少，又受到官殺、財、食傷的消耗，所以偏弱，需要扶助。':a.T<=55?'生扶與消耗大致相當，屬中和，不宜用力過猛。':'日主得令通根且有生扶，力量偏足，需要洩、耗、制來平衡。'}${a.T<=20?'日主極弱，需另外檢查從格。':a.T>=86?'日主極旺，需另外檢查特殊格局。':''}分級是本模型的操作分級，不是傳統公認標準。</p>`;
+ const names=['比肩','劫財','正印','偏印','食神','傷官','正財','偏財','正官','七殺'],ef={比肩:'幫身',劫財:'幫身',正印:'生身',偏印:'生身',食神:'洩身',傷官:'洩身',正財:'耗身',偏財:'耗身',正官:'剋身',七殺:'剋身'};
+ h+=`<h3>四、十神力量與格局</h3>`+tbl(['十神','五行','所在位置','力量評估','對日主作用'],names.map(n=>{const l=a.tn.filter(x=>x.n==n),v=sm(l.map(x=>x.v));return [n,l.length?E[l[0].e]:'—',l.map(x=>x.pos).join('、')||'無',v?f1(v):'0（無）',ef[n]]}));
+ const mh=a.hid[1],tg=mh.find(x=>S.some((s,i)=>i!=2&&s==x.g))||mh[0],gn=tsn(dm,tg.g),gm=gn=='比肩'?'建祿格':gn=='劫財'?'月劫（月刃）格':gn+'格',tou=S.some((s,i)=>i!=2&&s==tg.g),hs=n=>S.some((s,i)=>i!=2&&tsn(dm,s)==n),brk={正官:['傷官'],七殺:['傷官'],正財:['比肩','劫財'],偏財:['比肩','劫財'],正印:['正財','偏財'],偏印:['正財','偏財'],食神:['偏印'],傷官:['正官']}[gn]||[],bk=brk.filter(hs),cong=a.T<=20&&a.B2<=3&&a.C==0?'可能有從弱、從財或從官殺的傾向，需要細看':a.T>=86?'可能有從旺的傾向，需要細看':'未見從格的條件';
+ h+=`<p><b>格局：</b>月令${Z[B[1]]}藏干${mh.map(x=>G[x.g]).join('、')}，取${G[tg.g]}（${gn}）定為<b>${gm}</b>。${tou?'該干透出天干，格局成立度較高':'該干沒有透出天干，只能以月令藏干論，成立度較低'}；破格因素：${bk.length?'天干見'+bk.join('、')+'，有破格之嫌':'天干未見明顯的破格十神'}。特殊格局：${cong}。格局只以月令十神定名，仍須看通根與破格才算成立。</p>`;
+ const rs=[];a.R.he.forEach(x=>rs.push(['六合',pn(x.p),E[ZE[B[x.p[0]]]]+'、'+E[ZE[B[x.p[1]]]],x.ok?'合化成立（月令支持化神、無沖破、天干透出化神），部分力量轉為'+E[x.z]:'合而不化，力量被牽絆，各減約 5%；合化需月令支持化神、無沖破、並有天干透出']));
+ a.R.san.concat(a.R.hui).forEach(x=>rs.push([a.R.san.includes(x)?'三合':'三會',pn(x.p)+(x.full?'':'（半）'),E[x.z]+'局',x.full?(x.ok?'局成立，約 30% 力量轉為'+E[x.z]:'三支齊但月令不在局內或有沖破，局不成立'):'只有兩支，只算半合，不能當作成局']));
+ a.R.cho.forEach(x=>rs.push(['六沖',pn(x.p),E[ZE[B[x.p[0]]]]+'、'+E[ZE[B[x.p[1]]]],'兩支根氣各減約 20%，不是力量消失']));a.R.hai.forEach(x=>rs.push(['六害',pn(x.p),E[ZE[B[x.p[0]]]]+'、'+E[ZE[B[x.p[1]]]],'各減約 8%']));a.R.xi.forEach(x=>rs.push(['刑',pn(x.p),x.t,'各減約 6% 到 10%']));
+ [[0,5],[1,6],[2,7],[3,8],[4,9]].forEach(([p,q],k)=>{const ps=[0,1,3].concat([2]).filter(i=>S[i]%10==p||S[i]%10==q);const hp=[0,1,2,3].filter(i=>S[i]==p);const hq=[0,1,2,3].filter(i=>S[i]==q);if(hp.length&&hq.length)rs.push(['天干五合',pn(hp.concat(hq)).replace(/支/g,'干'),'合化'+E[(k+2)%5],'合化需月令支持化神且無剋破，否則合而不化，只作為牽制']);});
+ h+=`<h3>五、刑沖合害</h3>`+(rs.length?tbl(['類型','柱位','涉及','影響與合化條件'],rs):'<p>地支與天干沒有六合、三合、六沖、六害、刑等關係。</p>');
+ const mn=['木','火','土','金','水'];
+ h+=`<h3>六、喜用神四種方法</h3><p class='mu'>日主強度 ${f1(a.T)}：</p>${bar('強度',a.T,100,'#8a3b2a',f1(a.T)+' 分')}`;
+ const m4=[['扶抑法',a.fy,`日主${a.band}，${a.T<=50?'以印、比劫扶助為主；食傷、財、官殺會再消耗日主':'以食傷洩、財耗、官殺制為主；印、比劫會讓力量更滿'}`],['調候法',a.tj,`${Z[B[1]]}月${[11,0,1].includes(B[1])?'偏寒，需火暖':[5,6,7].includes(B[1])?'偏熱，需水潤':'寒暖不極端'}；命局火 ${f1(a.fin[1])}、水 ${f1(a.fin[4])}`],['通關法',a.tg,a.cf?`${E[a.cf.a]}剋${E[a.cf.b]}對立，以${E[a.cf.m]}通關（${E[a.cf.a]}生${E[a.cf.m]}、${E[a.cf.m]}生${E[a.cf.b]}），須確認通關五行不是忌神`:'沒有明顯的五行對立，不需通關'],['病藥法',a.by,a.fin[a.ds[0]]>=15?`主要之病：${E[a.ds[0]]}（${f1(a.fin[a.ds[0]])}%），${a.fin[a.ds[1]]>=15?'次要病灶：'+E[a.ds[1]]+'；':''}藥為剋制或洩化病神的五行，並扣除會加重失衡的部分`:'沒有明顯的單一病灶']];
+ m4.forEach(x=>h+=`<p><b>${x[0]}：</b>${x[2]}。首選 ${E[x[1].indexOf(Math.max(...x[1]))]}。</p>`);
+ h+=`<h3>七、喜用神量化評分</h3><p>權重理由：</p><ul>${a.why.map(x=>`<li>${x}</li>`).join('')}</ul><p>權重：扶抑 ${a.wt.fy}%、調候 ${a.wt.tj}%、通關 ${a.wt.tg}%、病藥 ${a.wt.by}%（換算後合計 100%）。</p>`+tbl(['五行','扶抑','調候','通關','病藥','綜合'],[0,1,2,3,4].map(e=>[E[e],f1(a.fy[e]),f1(a.tj[e]),f1(a.tg[e]),f1(a.by[e]),'<b>'+f1(a.cp[e])+'</b>']))+`<p class='mu'>扶抑首選${E[a.fy.indexOf(Math.max(...a.fy))]}，調候首選${E[a.tj.indexOf(Math.max(...a.tj))]}${a.fy.indexOf(Math.max(...a.fy))==a.tj.indexOf(Math.max(...a.tj))?'，方向一致':'，兩者不同，兩種判斷都保留，依權重取捨'}。五行力量高不代表是忌神，缺少也不代表一定要補。</p>`;
+ h+=`<h3>八、最終喜用神與忌神</h3>`+tbl(['五行','命局力量','喜忌定位','優先順序','理由'],a.o.map((e,i)=>[E[e],f1(a.fin[e])+'%','<b>'+a.role[e]+'</b>',i+1,`${REL[(e-de+5)%5].split('(')[0]}；扶抑 ${f1(a.fy[e])}、調候 ${f1(a.tj[e])}、通關 ${f1(a.tg[e])}、病藥 ${f1(a.by[e])}`]))+`<p class='mu'>各喜神重要性不同，依綜合分數排序。副作用：用${E[a.o[0]]}時，要留意${a.fy[a.o[0]]<50?'它在扶抑上會增加日主負擔':'過量反而失衡'}。</p>`;
+ h+=`<h3>九、視覺化報告</h3><p><b>A. 五行力量分布（合計 100）</b></p>`+[0,1,2,3,4].map(e=>bar(E[e],a.fin[e],60,EC[e],f1(a.fin[e]))).join('')+`<p><b>B. 日主強弱（0–100）</b></p>${bar('強度',a.T,100,'#8a3b2a',f1(a.T)+' '+a.band.slice(0,2))}<p><b>C. 五行綜合適合度</b></p>`+[0,1,2,3,4].map(e=>bar(E[e],a.cp[e],100,EC[e],f1(a.cp[e]))).join('')+`<p><b>D. 四種方法比較</b></p>`+tbl(['方法','木','火','土','金','水'],[['扶抑',a.fy],['調候',a.tj],['通關',a.tg],['病藥',a.by],['綜合',a.cp]].map(([n,v])=>[n].concat(v.map(x=>f1(x)))));
+ h+=`<div style='background:var(--hi);border-radius:8px;padding:8px 12px;margin:8px 0'><b>E. 命局摘要卡</b><ul><li>四柱：${[0,1,2,3].map(i=>G[S[i]]+Z[B[i]]).join(' ')}；日主：${G[dm]}${E[de]}；${a.band}（${f1(a.T)} 分）</li><li>五行力量排序：${[0,1,2,3,4].sort((p,q)=>a.fin[q]-a.fin[p]).map(e=>E[e]+f1(a.fin[e])).join(' > ')}</li><li>命局主要問題：${a.fin[a.ds[0]]>=15?E[a.ds[0]]+'偏重（'+f1(a.fin[a.ds[0]])+'%），'+(a.wk?'消耗與壓制日主':'讓日主更滿'):'沒有明顯單一失衡'}</li><li>第一用神：${E[a.o[0]]}；喜神：${xi.slice(1).map(e=>E[e]).join('、')||'無'}；忌神：${ji.map(e=>E[e]).join('、')||'無明顯忌神'}</li><li>取用核心理由：${E[a.o[0]]}（${REL[(a.o[0]-de+5)%5].split('(')[0]}）綜合分數最高 ${f1(a.cp[a.o[0]])}，各方法的分數為扶抑 ${f1(a.fy[a.o[0]])}、調候 ${f1(a.tj[a.o[0]])}、通關 ${f1(a.tg[a.o[0]])}、病藥 ${f1(a.by[a.o[0]])}。</li></ul></div><p class='mu'>以上是自訂量化模型，不是傳統命理的公認公式，也不是經科學驗證的事實；不同流派的結論可能不同，建議再請老師核對。步驟 3 起以第一用神、第二喜神為補元素，以忌神為宜避免的五行。</p>`;
+ $('o2').innerHTML=h;renderZx();if(picked)run3()}
 initL();s2l();run1();
 </script></body></html>
