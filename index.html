@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>命名計算器：八字、補元素、三才五格</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#faf8f4;--card:#fff;--tx:#222;--mu:#6b6b6b;--ac:#8a3b2a;--ln:#ddd5c8;--hi:#fff3c4;--ok:#1d7a4d}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1b1a18;--card:#262522;--tx:#eee;--mu:#a8a39a;--ac:#e0937f;--ln:#3d3a35;--hi:#4a4120;--ok:#6fcf9b}}
+:root[data-theme="dark"]{--bg:#1b1a18;--card:#262522;--tx:#eee;--mu:#a8a39a;--ac:#e0937f;--ln:#3d3a35;--hi:#4a4120;--ok:#6fcf9b}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.6 "Noto Sans TC","Microsoft JhengHei",sans-serif}
+main{max-width:860px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:8px 0}h2{font-size:17px;margin:0 0 8px;color:var(--ac)}
+section{background:var(--card);border:1px solid var(--ln);border-radius:10px;padding:14px;margin:14px 0}
+.sc{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{border:1px solid var(--ln);padding:4px 7px;text-align:center}th{background:var(--hi)}
+input,select,button{font:inherit;padding:5px 8px;margin:2px;border:1px solid var(--ln);border-radius:6px;background:var(--bg);color:var(--tx)}
+button{cursor:pointer;background:var(--ac);color:#fff;border:0}
+.mu{color:var(--mu);font-size:13px}.ok{color:var(--ok);font-weight:600}
+.ch{display:inline-block;min-width:44px;margin:3px;padding:4px 6px;border:1px solid var(--ln);border-radius:8px;text-align:center;cursor:pointer}
+.ch.hit{background:var(--hi)}.ch.ng{border-color:#d9534f}.ch.sel{outline:2px solid var(--ac)}
+tr.pick{cursor:pointer}tr.pick:hover td,tr.on td{background:var(--hi)}
+ul{margin:4px 0;padding-left:20px}
+</style></head><body><main>
+<h1>命名計算器</h1>
+<p class="mu">輸入八字與姓氏，依序得到補元素判斷、三才五格建議、筆畫選字與部首五行。結果為傳統命理的參考，各流派說法不一。</p>
+
+<section><h2>步驟 1　輸入出生時間，排八字（子初／子正）</h2>
+國曆 <input id="dt" type="date" onchange="s2l()"> 時間 <input id="tm" type="time"><br>農曆 <input id="ly" type="number" style="width:80px" onchange="l2s()">年 <select id="lm" onchange="l2s()"></select>月 <label><input type="checkbox" id="lp" onchange="l2s()">閏月</label> <input id="ld" type="number" min="1" max="30" style="width:60px" onchange="l2s()">日　性別 <select id="sex"><option>男</option><option>女</option></select>
+<button onclick="run1()">排盤</button>
+<p class="mu">國曆與農曆欄位會互相換算（農曆為國曆當日的日期，子初換日者 23 點後出生，農曆日常記為次日）。月柱依節氣的日期推算（精度到日），出生日剛好是節氣當天時請用萬年曆核對。僅在 23:00 至 23:59 出生時，子初與子正兩種排法才會不同。支援 2001–2099 年。</p>
+<div id="o1" class="sc"></div></section>
+
+<section><h2>步驟 2　補元素判斷</h2>
+<label>採用排法：<select id="mode" onchange="run2()"><option value="0">子初換日</option><option value="1">子正換日</option></select></label>
+<div id="o2"></div></section>
+
+<section><h2>步驟 3　姓氏與三才五格</h2>
+姓氏 <input id="sn" size="3" value="黃" oninput="fillSn()"> 康熙筆畫 <input id="ss" type="number" min="1" max="40" value="12" style="width:60px">
+<button onclick="run3()">計算</button> <label><input type="checkbox" id="half" checked onchange="run3()"> 總格接受半吉</label>
+<p class="mu">單姓適用。常見姓氏會自動帶入筆畫，其他姓氏請自行輸入康熙字典筆畫。</p>
+<div id="o3" class="sc"></div></section>
+
+<section><h2>步驟 4　生肖姓名學：喜忌用字根</h2><div id="o4z" class="sc"><span class="mu">請先完成步驟 1。</span></div></section>
+<section><h2>步驟 5　依筆畫選字</h2><div id="o4" class="sc"><span class="mu">請先在步驟 3 點選一組五格配置。</span></div></section>
+<section><h2>步驟 6　部首與五行，補充命盤參考</h2><div id="o5" class="sc"><span class="mu">請先在步驟 5 選字。</span></div></section>
+<section><h2>步驟 7　姓名搭配八字，綜合命盤</h2><div id="o6" class="sc"><span class="mu">請先完成選字。</span></div></section>
+</main>
+<script>
+const G="甲乙丙丁戊己庚辛壬癸",Z="子丑寅卯辰巳午未申酉戌亥",E="木火土金水",
+ZE=[4,2,0,0,2,1,1,2,3,3,2,4],
+HID=["癸","己癸辛","甲丙戊","乙","戊乙癸","丙戊庚","丁己","己丁乙","庚壬戊","辛","戊辛丁","壬甲"],
+REL=["比劫(同我)","食傷(我生)","財(我剋)","官殺(剋我)","印(生我)"],
+T="AEBEBBBBEEBEBEBBBBEEBEBBBEDECCBBBEBEBCBDBDDEBEBBDDCBDECECCEECEBEBEBBEECDCECECCEEA",
+TXT={A:"大吉",B:"吉",C:"半吉",D:"半凶",E:"凶"},
+JIE=[5.4055,3.87,5.63,4.81,5.52,5.678,7.108,7.5,7.646,8.318,7.438,7.18],
+SN={黃:12,陳:16,林:8,李:7,王:4,張:11,劉:15,楊:13,吳:7,蔡:17,許:11,鄭:19,謝:17,郭:15,洪:10,曾:12,邱:12,廖:14,賴:16,徐:10,周:8,葉:15,蘇:22,莊:13,呂:7,江:7,何:7,蕭:18,羅:19,高:10,潘:16,簡:18,朱:6,鍾:20,彭:12,游:13,詹:13,胡:9,施:9,沈:8,余:7,盧:16,梁:11,趙:14,顏:18,柯:9,翁:10,魏:18,孫:10,戴:18},
+DB="山山土3 川川水3 土土土3 木木木4 火火火4 水水水4 日日火4 禾禾木5 石石金5 永水水5 白白金5 田田土5 旭日火6 材木木7 均土土7 杰木木8 林木木8 松木木8 東木木8 坤土土8 岳山土8 炎火火8 昊日火8 沐水水8 汶水水8 金金金8 柏木木9 昭日火9 昱日火9 炫火火9 泓水水9 桐木木10 栩木木10 洋水水10 城土土10 峻山土10 梓木木11 基土土11 培土土11 崇山土11 浩水水11 浚水水11 晨日火11 森木木12 棋木木12 涵水水12 淳水水12 清水水12 晴日火12 堯土土12 鈞金金12 楷木木13 楠木木13 煜火火13 煊火火13 煥火火13 暉日火13 榮木木14 銘金金14 樂木木15 鋒金金15 銳金金15 橋木木16 樺木木16 錦金金16 澈水水16 潤水水16 澤水水17 燦火火17 濤水水18 鎮金金18 瀚水水20 鑫金金24".split(" ").map(s=>({c:s[0],r:s[1],e:E.indexOf(s[2]),n:+s.slice(3)}));
+const $=id=>document.getElementById(id),g=n=>T[(n>81?n-80:n)-1],gx=n=>TXT[g(n)],el=n=>[4,0,0,1,1,2,2,3,3,4][n%10];
+let charts=[],lvl=[],W=[],picked=null,sel=[];
+
+function termDay(y,m){const Y=y%100,L=m<=2?Math.floor((Y-1)/4):Math.floor(Y/4);return Math.floor(Y*.2422+JIE[m-1])-L}
+function bazi(y,m,d,h,mode){
+ const ye=(m<2||(m==2&&d<termDay(y,2)))?y-1:y,ys=(ye-4)%10,yb=(ye-4)%12;
+ const b=d>=termDay(y,m)?m%12:(m==1?12:m-1)%12;
+ const ms=((ys%5)*2+2+((b-2+12)%12))%10;
+ const n=Math.round((Date.UTC(y,m-1,d)-Date.UTC(2000,0,1))/864e5);
+ let i=(((54+n)%60)+60)%60;if(mode==0&&h==23)i=(i+1)%60;
+ const ds=i%10,db=i%12,hb=Math.floor((h+1)/2)%12,hs=((ds%5)*2+hb)%10;
+ return{s:[ys,ms,ds,hs],b:[yb,b,db,hb]}}
+const P=(c,i)=>G[c.s[i]]+Z[c.b[i]];
+function run1(){
+ const[v,t]=[$("dt").value,$("tm").value];if(!v||!t)return;
+ const[y,m,d]=v.split("-").map(Number),[h,mi]=t.split(":").map(Number);
+ charts=[bazi(y,m,d,h,0),bazi(y,m,d,h,1)];
+ let s='<table><tr><th>排法</th><th>年柱</th><th>月柱</th><th>日柱</th><th>時柱</th><th>日主</th></tr>';
+ ["子初換日（23:00換日）","子正換日（00:00換日）"].forEach((n,k)=>{const c=charts[k];
+  s+=`<tr><td>${n}</td>${[0,1,2,3].map(i=>`<td>${P(c,i)}</td>`).join("")}<td>${G[c.s[2]]}${E[c.s[2]>>1]}（${c.s[2]%2?"陰":"陽"}）</td></tr>`});
+ s+='</table>';
+ s+=h==23?'<p class="mu">23 點出生，兩種排法的日柱與時柱不同，步驟 2 起請選一種繼續。</p>':'<p class="mu">此時間兩種排法結果相同。</p>';
+ $("o1").innerHTML=`<p>性別：${$('sex').value}　農曆 ${$('ly').value} 年${$('lp').checked?'閏':''}${$('lm').value} 月 ${$('ld').value} 日</p>`+s;run2()}
+function analyze(c){
+ const dm=c.s[2],de=dm>>1,sc=[0,0,0,0,0],w=[1,1,0,1.2],bw=[1,2,1.5,1],R=e=>(e-de+5)%5;
+ [0,1,3].forEach(i=>sc[c.s[i]>>1]+=w[i]);
+ c.b.forEach((b,i)=>{const h=HID[b],r=h.length==1?[1]:h.length==2?[.7,.3]:[.6,.3,.1];
+  [...h].forEach((x,k)=>sc[G.indexOf(x)>>1]+=bw[i]*r[k])});
+ const tot=sc.reduce((a,b)=>a+b),fu=sc[de]+sc[(de+4)%5],ra=fu/tot;
+ const L=ra<.4?"身弱":ra<.5?"中和偏弱":ra<.6?"中和偏強":"身強",weak=ra<.5;
+ const mr=R(ZE[c.b[1]]),dr=R(ZE[c.b[2]]),hr=R(c.s[3]>>1);
+ const prim=weak?(de+4)%5:(de+1)%5,sec=weak?de:(de+2)%5;
+ const avoid=weak?[(de+1)%5,(de+2)%5,(de+3)%5]:[(de+4)%5,de];
+ const miss=[0,1,2,3,4].filter(e=>sc[e]<.3);
+ const f=r=>r==0||r==4?"生扶日主":"耗洩剋日主";
+ const basis=[
+  `日主：${G[dm]}${E[de]}，${dm%2?"陰":"陽"}${E[de]}，${["","","","",""][0]}以此為判斷基準。`,
+  `月令：${Z[c.b[1]]}月，五行屬${E[ZE[c.b[1]]]}，對日主是${REL[mr]}，${mr==0||mr==4?"得令":"失令"}（月令權重加倍）。`,
+  `日支：${Z[c.b[2]]}，五行屬${E[ZE[c.b[2]]]}，對日主是${REL[dr]}，${f(dr)}。`,
+  `時干：${G[c.s[3]]}，五行屬${E[c.s[3]>>1]}，對日主是${REL[hr]}，${f(hr)}。`,
+  `日主力量：生扶（${E[de]}與${E[(de+4)%5]}）${fu.toFixed(1)}，耗洩剋 ${(tot-fu).toFixed(1)}，生扶占 ${(ra*100).toFixed(0)}%，判為${L}。`,
+  `五行分數：${E.split("").map((x,i)=>x+sc[i].toFixed(1)).join("　")}${miss.length?"；明顯偏缺："+miss.map(e=>E[e]).join("、"):""}。`];
+ return{L,prim,sec,avoid,basis,sc,de}}
+function run2(){
+ if(!charts.length){$("o2").innerHTML='<span class="mu">請先在步驟 1 排盤。</span>';return}
+ const c=charts[+$("mode").value],a=analyze(c);lvl=a;W=[a.prim,a.sec];
+ $("o2").innerHTML=`<ul>${a.basis.map(x=>`<li>${x}</li>`).join("")}</ul>
+ <p class="ok">判斷結果：${a.L}，主補「${E[a.prim]}」，次補「${E[a.sec]}」，宜避免過多的${a.avoid.map(e=>E[e]).join("、")}。</p>
+ <p class="mu">規則：生扶占 40% 以下身弱、40–50% 中和偏弱，皆補印（生我）與比劫（同我）；50–60% 中和偏強、60% 以上身強，補食傷（我生）與財（我剋）。分數為字數權重加藏干的簡化算法，月令×2、日支×1.5、時干×1.2。接近分界時，建議再請老師細看。</p>`;
+ renderZx();if(picked)run3()}
+DB.push(...'杉木木7 柔木木9 柯木木9 栗木木10 梧木木11 梅木木11 椿木木13 楓木木13 檀木木17 權木木22 芳艸木10 英艸木11 茂艸木11 茵艸木12 華艸木12 荷艸木13 莉艸木13 菁艸木14 菲艸木14 萱艸木15 蓉艸木16 蓓艸木16 蔚艸木17 薇艸木19 藝艸木21 蘭艸木21 洲水水10 海水水11 淇水水12 湛水水13 湘水水13 滋水水13 源水水14 溪水水14 澄水水16 鉅金金13 鈺金金13 銓金金14 錫金金16 鎧金金18 烈火火10 煌火火13 明日火8 春日火9 晉日火10 景日火12 智日火12 暄日火13 曦日火20 垣土土9 域土土11 堂土土11 境土土14 墨土土15 峰山土10 嵩山土13 嶽山土17 巍山土21 秀禾木7 秉禾木8 科禾木9 秋禾木9 程禾木12 穎禾木16 研石金11 碩石金14 磊石金15 子子水3'.split(' ').map(s=>({c:s[0],r:s[1],e:E.indexOf(s[2]),n:+s.slice(3)})));
+const LF=new Intl.DateTimeFormat('en-u-ca-chinese',{year:'numeric',month:'numeric',day:'numeric',timeZone:'UTC'});
+function lunarOf(t){const o={};LF.formatToParts(t).forEach(x=>o[x.type]=x.value);return{y:+(o.relatedYear||o.year),m:parseInt(o.month),lp:/bis/.test(o.month),d:+o.day}}
+function initL(){$('lm').innerHTML=[...Array(12)].map((_,i)=>`<option>${i+1}</option>`).join('')}
+function s2l(){const v=$('dt').value;if(!v)return;const l=lunarOf(new Date(v+'T00:00:00Z'));$('ly').value=l.y;$('lm').value=l.m;$('lp').checked=l.lp;$('ld').value=l.d}
+function l2s(){const y=+$('ly').value,m=+$('lm').value,lp=$('lp').checked,d=+$('ld').value;if(!y||!d)return;for(let i=0;i<430;i++){const t=new Date(Date.UTC(y,0,1)+i*864e5),l=lunarOf(t);if(l.y==y&&l.m==m&&l.lp==lp&&l.d==d){$('dt').value=t.toISOString().slice(0,10);return}}alert('查無此農曆日期（請確認月份、閏月與日數）')}
+function rl(a,b){const d=(b-a+5)%5;return d==0?E[a]+E[b]+'比和（同類）':d==1?E[a]+'生'+E[b]+'（相生）':d==2?E[a]+'剋'+E[b]+'（相剋）':d==3?E[b]+'剋'+E[a]+'（相剋）':E[b]+'生'+E[a]+'（逆生）'}
+function rel(x){return '天人：'+rl(x.t,x.r)+'<br>人地：'+rl(x.r,x.d)+'<br>'+['','三者同類，過旺','含逆生，偏勞心','順生或比和，順暢'][x.lv]}
+const ZN='鼠牛虎兔龍蛇馬羊猴雞狗豬',ZR=['子鼠','丑牛','寅虎虍','卯兔','辰龍','巳蛇虫','午馬','未羊','申猴','酉雞鳥','戌犬犭','亥豕'],ZH=['米豆禾艸水魚','艸禾米豆田車','山林木艸王','艸木禾豆米月','水雲雨日月玉','宀穴口木艸豆','艸木禾豆米山','艸木禾豆米月','木禾豆米山林人','米豆禾艸宀山','人肉月宀食','豆米艸水木宀口'],XM={0:[3],3:[0],1:[10,7],10:[1,7],7:[1,10],2:[5,8],5:[2,8],8:[2,5]};
+let ZX={xi:'',ji:''};
+const rt=a=>[...new Set(a.map(i=>ZR[i]).join(''))].join('');
+function zx(d){const s=d.r+d.c;if([...s].some(c=>ZX.ji.includes(c)))return'忌';if([...s].some(c=>ZX.xi.includes(c)))return'喜';return''}
+function zt(d){const z=zx(d);return z?'·生肖'+z:''}
+function renderZx(){const b=charts[+$('mode').value].b[0],A=a=>a.map(i=>ZN[i]+'('+Z[i]+')').join('、')||'—',san=[(b+4)%12,(b+8)%12],he=[(13-b)%12],ch=[(b+6)%12],hai=[(19-b)%12],xg=(XM[b]||[]).concat([4,6,9,11].includes(b)?[b]:[]);
+ const xi=[...new Set(san.concat(he))],ji=[...new Set(ch.concat(hai,xg))];ZX.xi=rt(xi)+ZH[b];ZX.ji=rt(ji);
+ const row=(n,a,t)=>`<tr><td>${n}</td><td>${A(a)}</td><td>${t}</td><td>${rt(a)||'—'}</td></tr>`;
+ $('o4z').innerHTML=`<p>生肖：<b>${ZN[b]}</b>（年支${Z[b]}，依八字年柱，以立春為界；若以農曆新年為界，生肖可能不同）</p><table><tr><th>關係</th><th>生肖</th><th>性質</th><th>對應字根</th></tr>${row('三合',san,'喜')}${row('六合',he,'喜')}${row('六沖',ch,'忌')}${row('六害',hai,'忌')}${row('三刑／自刑',xg,'忌')}<tr><td>本生肖喜好</td><td>${ZN[b]}</td><td>喜</td><td>${ZH[b]}</td></tr></table><p><b>喜用字根：</b>${ZX.xi.split('').join(' ')}</p><p><b>忌用字根：</b>${ZX.ji.split('').join(' ')}</p><p class='mu'>字體屬性說明：字本身或其部首落在喜用字根者標「生肖喜」（三合、六合生肖的字根，加上本生肖愛吃、愛棲息的部首）；落在忌用字根者標「生肖忌」（沖、害、刑生肖的字根）；兩者同時出現時以忌為先。部首分類以字庫的部首欄為準，此為通行說法，各流派另有細項，僅供選字參考。</p>`}
+function addC(){const c=$('nc').value.trim(),r=$('nr').value.trim()||c,e=+$('ne').value,n=+$('nn').value;if(!c||!n)return;DB.push({c:[...c][0],r:r[0],e,n});run4()}
+function fillSn(){const v=SN[$("sn").value];if(v)$("ss").value=v}
+function tsai(S,a,b){ // b undefined => 單名
+ const ren=S+a,di=b==null?a+1:a+b,zo=b==null?ren:S+a+b,wa=b==null?2:b+1,t=el(S+1),r=el(ren),d=el(di);
+ const r1=(r-t+5)%5,r2=(d-r+5)%5;let lv;
+ if(r1==2||r1==3||r2==2||r2==3)lv=0;else if(t==r&&r==d)lv=1;else lv=(r1<2&&r2<2)?3:2;
+ return{ren,di,zo,wa,t,r,d,lv}}
+function run3(){
+ if(!W.length){$("o3").innerHTML='<span class="mu">請先完成步驟 1、2。</span>';return}
+ const S=+$("ss").value,rows=[],cnt={1:0,2:0};
+ const add=(a,b)=>{const x=tsai(S,a,b),gr=[g(x.ren),g(x.di),g(x.zo)];
+  const ok=k=>k=="A"||k=="B";if(x.lv<2||!ok(gr[0])||!ok(gr[1])||!(ok(gr[2])||($("half").checked&&gr[2]=="C")))return;
+  let sc=(x.lv==3?30:15)+gr.reduce((s,k)=>s+(k=="A"?10:k=="B"?8:4),0)+({A:4,B:4,C:1}[b==null?"E":g(x.wa)]||0);
+  [x.r,x.d].forEach((e,i)=>{const k=e==W[0]?1:e==W[1]?.66:0;sc+=k*(i?6:12)});
+  const rm=[["天格",S+1],["人格",x.ren],["地格",x.di],["總格",x.zo]].concat(b==null?[]:[["外格",x.wa]]).filter(p=>"CDE".includes(g(p[1]))).map(p=>p[0]+p[1]+gx(p[1])).join("、");rows.push({a,b,x,sc,rm});cnt[b==null?1:2]++};
+ for(let a=1;a<=30;a++)add(a,null);
+ for(let a=1;a<=24;a++)for(let b=1;b<=24;b++)add(a,b);
+ rows.sort((p,q)=>q.sc-p.sc);const top=rows.slice(0,30);
+ const nm=["","","吉（含逆生）","大吉"],ft=x=>`${x}（${gx(x)}）`;
+ let s=`<p>天格 ${ft(S+1)}，五行${E[el(S+1)]}。符合條件（三才無相剋，人格、地格為吉數以上，總格依右側選項可含半吉）的組合：<b>單名 ${cnt[1]} 組、雙名 ${cnt[2]} 組</b>，建議優先考慮<b>${cnt[2]>=cnt[1]?"雙名（三個字）":"單名（兩個字）"}</b>。以下為評分最高的 30 組，點選一列進入步驟 5。</p>
+ <table><tr><th>字數</th><th>名首／名次筆畫</th><th>人格</th><th>地格</th><th>總格</th><th>外格</th><th>三才</th><th>評級</th><th>補元素</th><th>備註（半吉以下）</th><th>五行關係說明</th></tr>`;
+ top.forEach((r,i)=>{const x=r.x,m=[x.r==W[0]?"人格主補":x.r==W[1]?"人格次補":"",x.d==W[0]?"地格主補":x.d==W[1]?"地格次補":""].filter(Boolean).join("、")||"—";
+  s+=`<tr class="pick" onclick="pickRow(${i})" id="r${i}"><td>${r.b==null?"單名":"雙名"}</td><td>${r.a}${r.b==null?"":"／"+r.b}</td><td>${ft(x.ren)} ${E[x.r]}</td><td>${ft(x.di)} ${E[x.d]}</td><td>${ft(x.zo)}</td><td>${r.b==null?"—":ft(x.wa)}</td><td>${E[x.t]}-${E[x.r]}-${E[x.d]}</td><td>${nm[x.lv]}</td><td>${m}</td><td>${r.rm?'<span style="color:#d9534f">'+r.rm+'</span>':"五格皆吉"}</td><td style='text-align:left'>${rel(x)}</td></tr>`});
+ $("o3").innerHTML=s+"</table>";window._top=top;picked=null}
+function pickRow(i){
+ document.querySelectorAll("tr.pick").forEach(t=>t.classList.remove("on"));$("r"+i).classList.add("on");
+ picked=window._top[i];sel=[];run4()}
+function run4(){
+ const r=picked,ns=[r.a];if(r.b!=null)ns.push(r.b);
+ let s=(r.rm?`<p style="color:#d9534f">提醒：此組合的${r.rm}，屬半吉以下。</p>`:"")+`<p>${r.b==null?"單名":"雙名"}，名首字 ${r.a} 畫${r.b==null?"":"，名次字 "+r.b+" 畫"}。黃底為符合補元素（${E[W[0]]}、${E[W[1]]}）的字，點選每個位置各一字。</p>`;
+ ns.forEach((n,k)=>{const l=DB.filter(d=>d.n==n);
+  s+=`<p><b>第 ${k+1} 字（${n} 畫）</b></p>`+(l.length?l.map(d=>`<span class="ch ${W.includes(d.e)?"hit":""}${zx(d)=="忌"?" ng":""}" id="c${k}${d.c}" onclick="choose(${k},'${d.c}')">${d.c}<br><small>${d.r}部·${E[d.e]}${zt(d)}</small></span>`).join(""):'<span class="mu">內建字庫尚無此筆畫的字，可換一組筆畫。</span>')});
+ s='<p class="mu">黃底：符合補元素；紅框：生肖忌用字根；標有「生肖喜」者為喜用字根。以下列出字庫中所有符合筆畫的字。</p>'+s+'<p class="mu">字庫沒有想要的字？自行加入：<input id=\'nc\' size=\'2\' placeholder=\'字\'><input id=\'nr\' size=\'3\' placeholder=\'部首\'><select id=\'ne\'>'+[0,1,2,3,4].map(i=>'<option value=\''+i+'\'>'+E[i]+'</option>').join('')+'</select><input id=\'nn\' type=\'number\' style=\'width:64px\' placeholder=\'筆畫\'><button onclick=\'addC()\'>加入</button></p>';$("o4").innerHTML=s;run5()}
+function choose(k,c){sel[k]=c;document.querySelectorAll(`[id^=c${k}]`).forEach(e=>e.classList.remove("sel"));$("c"+k+c).classList.add("sel");run5()}
+function run5(){
+ const r=picked;if(!r)return;const n=r.b==null?1:2,ch=sel.slice(0,n).map(c=>DB.find(d=>d.c==c)).filter(Boolean);
+ if(ch.length<n){$("o5").innerHTML='<span class="mu">請在步驟 5 為每個位置選一字。</span>';$("o6").innerHTML='<span class="mu">請先完成選字。</span>';return}
+ const c=charts[+$("mode").value],a=lvl,cnt=a.sc.map(x=>x);
+ const add=[0,0,0,0,0];ch.forEach(d=>add[d.e]++);
+ let s=`<p class="ok">姓名：${$("sn").value}${ch.map(d=>d.c).join("")}</p><table><tr><th>字</th><th>部首</th><th>五行</th><th>康熙筆畫</th><th>是否補到</th><th>生肖字根</th></tr>`+
+ ch.map(d=>`<tr><td>${d.c}</td><td>${d.r}</td><td>${E[d.e]}</td><td>${d.n}</td><td>${d.e==W[0]?"主補":d.e==W[1]?"次補":"—"}</td><td>${zx(d)||"—"}</td></tr>`).join("")+"</table>";
+ s+=`<p>命盤五行分數加上名字用字：</p><table><tr><th></th>${E.split("").map(x=>`<th>${x}</th>`).join("")}</tr><tr><td>命盤</td>${cnt.map(x=>`<td>${x.toFixed(1)}</td>`).join("")}</tr><tr><td>名字字數</td>${add.map(x=>`<td>${x}</td>`).join("")}</tr></table>`;
+ const hit=ch.filter(d=>d.e==W[0]||d.e==W[1]).length;
+ s+=`<p>${hit==0?"名字用字沒有補到所需元素，補元素主要靠三才五格的人格、地格，也可回到步驟 4 換字。":"名字用字有 "+hit+" 個字屬於補元素，與五格的補益相互呼應。"}字庫五行依部首與字義簡化判定，正式定名前建議再查字義、讀音與康熙字典筆畫。</p>`;
+ $("o5").innerHTML=s;run6(ch)}
+function run6(ch){const r=picked,x=r.x,a=lvl,S=+$('ss').value,de=a.de,wk=a.L=='身弱'||a.L=='中和偏弱',LV=q=>q<.4?'身弱':q<.5?'中和偏弱':q<.6?'中和偏強':'身強',tg=e=>e==W[0]?'主補':e==W[1]?'次補':a.avoid.includes(e)?'宜避免':'—';
+ const gs=[['天格',S+1,0],['人格',x.ren,1],['地格',x.di,1],['外格',x.wa,.5],['總格',x.zo,.5]].filter(p=>!(r.b==null&&p[0]=='外格')),add=[0,0,0,0,0];
+ gs.forEach(p=>add[el(p[1])]+=p[2]);ch.forEach(d=>add[d.e]+=.5);
+ const s2=a.sc.map((v,i)=>v+add[i]),R=s=>(s[de]+s[(de+4)%5])/s.reduce((p,q)=>p+q),r0=R(a.sc),r1=R(s2),pc=q=>(q*100).toFixed(0)+'%';
+ const good=wk?(r1>r0&&r1<=.6):(r1<r0&&r1>=.4),over=wk?r1>.6:r1<.4,hit=gs.filter(p=>p[2]>=1&&(el(p[1])==W[0]||el(p[1])==W[1])).map(p=>p[0]);
+ const vd=good?`姓名補到了所需的元素，日主力量由${a.L}（${pc(r0)}）調整為${LV(r1)}（${pc(r1)}），方向正確。`:over?`姓名補得偏多，日主力量由${a.L}（${pc(r0)}）變為${LV(r1)}（${pc(r1)}），已超過合適範圍，建議換字或換筆畫。`:`姓名對日主的幫助有限，生扶占比由 ${pc(r0)} 變為 ${pc(r1)}，沒有明顯改善，建議換一組五行更貼近「${E[W[0]]}、${E[W[1]]}」的筆畫或用字。`;
+ let s='<table><tr><th>格</th><th>數</th><th>數理</th><th>五行</th><th>與補元素</th></tr>'+gs.map(p=>`<tr><td>${p[0]}</td><td>${p[1]}</td><td>${gx(p[1])}</td><td>${E[el(p[1])]}</td><td>${tg(el(p[1]))}</td></tr>`).join('')+'</table>';
+ s+='<p>命盤五行分數加上姓名的加成：</p><table><tr><th></th>'+[0,1,2,3,4].map(i=>`<th>${E[i]}</th>`).join('')+'</tr><tr><td>命盤</td>'+a.sc.map(v=>`<td>${v.toFixed(1)}</td>`).join('')+'</tr><tr><td>姓名加成</td>'+add.map(v=>`<td>${v.toFixed(1)}</td>`).join('')+'</tr><tr><td>合計</td>'+s2.map(v=>`<td>${v.toFixed(1)}</td>`).join('')+'</tr></table>';
+ s+=`<ul><li>三才配置：${E[x.t]}-${E[x.r]}-${E[x.d]}，${['','半吉','吉（含逆生）','大吉'][x.lv]}。</li><li>補元素落點：${hit.length?hit.join('、')+'的五行屬於補元素':'人格、地格都沒有落在補元素上，補益主要靠用字'}。</li>${r.rm?`<li style='color:#d9534f'>提醒：${r.rm}，屬半吉以下。</li>`:''}</ul>`;
+ s+=`<p class='ok'>綜合結論：八字原判${a.L}，主補${E[W[0]]}、次補${E[W[1]]}。${vd}</p><p class='mu'>加成規則：人格與地格各 1，總格與外格各 0.5，每個用字 0.5，天格屬先天，不計入。這是簡化的估算，僅供參考。</p>`;
+ $('o6').innerHTML=s}
+initL();s2l();run1();
+</script></body></html>
