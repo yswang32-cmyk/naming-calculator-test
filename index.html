@@ -213,5 +213,17 @@ function run4(){
   if(!l.length)s+=`<p class='mu'>字庫尚無此筆畫的字，請用下方「新增字」加入。</p>`;
   E.split('').forEach((x,i)=>{const g=l.filter(d=>d.e==i);if(g.length)s+=`<div><span class='mu'>${x}：</span>${g.map(d=>`<span class='ch ${W.includes(d.e)?'hit':''}${zx(d)=='忌'?' ng':''}' title='${qs(d.m)}' id='c${k}${d.c}' data-c='${d.c}' onclick='choose(${k},this.dataset.c)'>${d.c}<br><small>${d.r}部·${E[d.e]}${zt(d)}</small></span>`).join('')}</div>`})});
  s+=addForm(ns);$('o4').innerHTML=s;run5()}
+DB.push(...'粒米木11 精米木14 粹米木14 豐豆木18 安宀土6 宇宀土6 宏宀土7 宗宀土8 宙宀土8 宜宀土8 宥宀土9 宣宀土9 室宀土9 容宀土10 寓宀土12 寧宀土14 實宀土14 寬宀土15 仁人火4 伯人火7 佑人火7 佳人火8 佩人火8 俊人火9 信人火9 倫人火10 倍人火10 健人火11 偉人火12 傑人火14 儀人火15 朋月水8 朗月水11 期月水12 君口水7 和口水8 品口水9 哲口水10 嘉口水14 器口水16 吉口水6 啟口水11 喬口水12 理玉金12 琪玉金13 瑞玉金14 瑋玉金14 瑜玉金14 珉玉金10 琳玉金13 軒車火10 輝車火15 輔車火14 雲雨水12 霖雨水16 魚魚水11 男田土7 界田土9 畢田土11 美羊土9 善羊土12 義羊土13 群羊土13 狀犬木8'.split(' ').map(s=>({c:s[0],r:s[1],e:E.indexOf(s[2]),n:+s.slice(3)})));
+function chip(d,k){return `<span class='ch ${W.includes(d.e)?'hit':''}${zx(d)=='忌'?' ng':''}' title='${qs(d.m)}' id='c${k}${d.c}' data-c='${d.c}' onclick='choose(${k},this.dataset.c)'>${d.c}<br><small>${d.r}部·${E[d.e]}${zt(d)}</small></span>`}
+function grp(l,k){return E.split('').map((x,i)=>{const g=l.filter(d=>d.e==i);return g.length?`<div><span class='mu'>${x}：</span>${g.map(d=>chip(d,k)).join('')}</div>`:''}).join('')}
+function pickPair(i){const p=window._pr[i];choose(0,p[0].c);choose(1,p[1].c)}
+function run4(){
+ const r=picked;if(!r)return;const ns=[r.a];if(r.b!=null)ns.push(r.b);
+ const sc=d=>d.e==W[0]?2:d.e==W[1]?1:0,L=ns.map(n=>DB.filter(d=>d.n==n)),X=L.map(l=>l.filter(d=>zx(d)=='喜')),N=L.map(l=>l.filter(d=>zx(d)=='')),J=L.map(l=>l.filter(d=>zx(d)=='忌'));
+ let s=(r.rm?`<p style='color:#d9534f'>提醒：此組合的${r.rm}，屬半吉以下。</p>`:'')+`<p>${r.b==null?'單名':'雙名'}，名首字 ${r.a} 畫${r.b==null?'':'，名次字 '+r.b+' 畫'}。以下依步驟 3 所選的筆畫組合，列出各字位的<b>生肖喜用字庫</b>（喜用字根：${ZX.xi.split('').join(' ')}）。黃底為符合補元素（${E[W[0]]}、${E[W[1]]}）的字，可直接點字，或點「建議搭配」一次選好；滑鼠停在字上可看字義。</p>`;
+ if(r.b!=null){const P=[];X[0].forEach(a=>X[1].forEach(b=>{if(a.c!=b.c)P.push([a,b,sc(a)+sc(b)])}));P.sort((p,q)=>q[2]-p[2]);window._pr=P.slice(0,12);
+  s+=`<p><b>建議搭配（喜用字 × 喜用字，補元素優先）</b></p>`+(P.length?window._pr.map((p,i)=>`<span class='ch ${p[2]>=3?'hit':''}' onclick='pickPair(${i})'>${p[0].c}${p[1].c}<br><small>${E[p[0].e]}${E[p[1].e]}</small></span>`).join(''):`<p class='mu'>兩個字位的喜用字庫沒有可搭配的組合，可展開中性字，或用下方新增字。</p>`)}
+ ns.forEach((n,k)=>{s+=`<p><b>第 ${k+1} 字（${n} 畫）生肖喜用字庫，共 ${X[k].length} 字</b></p>`+(X[k].length?grp(X[k],k):`<p class='mu'>字庫沒有此筆畫的喜用字，可展開中性字，或用下方新增字。</p>`)+`<details><summary>中性字（${N[k].length}）</summary>${grp(N[k],k)}</details><details><summary>生肖忌用字（${J[k].length}，不建議）</summary>${grp(J[k],k)}</details>`});
+ s+=addForm(ns);$('o4').innerHTML=s;run5()}
 initL();s2l();run1();
 </script></body></html>
