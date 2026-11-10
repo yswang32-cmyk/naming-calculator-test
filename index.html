@@ -103,7 +103,7 @@ function run2(){
  const c=charts[+$("mode").value],a=analyze(c);lvl=a;W=[a.prim,a.sec];
  $("o2").innerHTML=`<ul>${a.basis.map(x=>`<li>${x}</li>`).join("")}</ul>
  <p class="ok">判斷結果：${a.L}，主補「${E[a.prim]}」，次補「${E[a.sec]}」，宜避免過多的${a.avoid.map(e=>E[e]).join("、")}。</p>
- <p class="mu">規則：生扶占 40% 以下身弱、40–50% 中和偏弱，皆補印（生我）與比劫（同我）；50–60% 中和偏強、60% 以上身強，補食傷（我生）與財（我剋）。分數為字數權重加藏干的簡化算法，月令×2、日支×1.5、時干×1.2。接近分界時，建議再請老師細看。</p>`;
+ ${plain(a)}<p class="mu">規則：生扶占 40% 以下身弱、40–50% 中和偏弱，皆補印（生我）與比劫（同我）；50–60% 中和偏強、60% 以上身強，補食傷（我生）與財（我剋）。分數為字數權重加藏干的簡化算法，月令×2、日支×1.5、時干×1.2。接近分界時，建議再請老師細看。</p>`;
  renderZx();if(picked)run3()}
 DB.push(...'杉木木7 柔木木9 柯木木9 栗木木10 梧木木11 梅木木11 椿木木13 楓木木13 檀木木17 權木木22 芳艸木10 英艸木11 茂艸木11 茵艸木12 華艸木12 荷艸木13 莉艸木13 菁艸木14 菲艸木14 萱艸木15 蓉艸木16 蓓艸木16 蔚艸木17 薇艸木19 藝艸木21 蘭艸木21 洲水水10 海水水11 淇水水12 湛水水13 湘水水13 滋水水13 源水水14 溪水水14 澄水水16 鉅金金13 鈺金金13 銓金金14 錫金金16 鎧金金18 烈火火10 煌火火13 明日火8 春日火9 晉日火10 景日火12 智日火12 暄日火13 曦日火20 垣土土9 域土土11 堂土土11 境土土14 墨土土15 峰山土10 嵩山土13 嶽山土17 巍山土21 秀禾木7 秉禾木8 科禾木9 秋禾木9 程禾木12 穎禾木16 研石金11 碩石金14 磊石金15 子子水3'.split(' ').map(s=>({c:s[0],r:s[1],e:E.indexOf(s[2]),n:+s.slice(3)})));
 const LF=new Intl.DateTimeFormat('en-u-ca-chinese',{year:'numeric',month:'numeric',day:'numeric',timeZone:'UTC'});
@@ -123,6 +123,15 @@ function renderZx(){const b=charts[+$('mode').value].b[0],A=a=>a.map(i=>ZN[i]+'(
  const row=(n,a,t)=>`<tr><td>${n}</td><td>${A(a)}</td><td>${t}</td><td>${rt(a)||'—'}</td></tr>`;
  $('o4z').innerHTML=`<p>生肖：<b>${ZN[b]}</b>（年支${Z[b]}，依八字年柱，以立春為界；若以農曆新年為界，生肖可能不同）</p><table><tr><th>關係</th><th>生肖</th><th>性質</th><th>對應字根</th></tr>${row('三合',san,'喜')}${row('六合',he,'喜')}${row('六沖',ch,'忌')}${row('六害',hai,'忌')}${row('三刑／自刑',xg,'忌')}<tr><td>本生肖喜好</td><td>${ZN[b]}</td><td>喜</td><td>${ZH[b]}</td></tr></table><p><b>喜用字根：</b>${ZX.xi.split('').join(' ')}</p><p><b>忌用字根：</b>${ZX.ji.split('').join(' ')}</p><p class='mu'>字體屬性說明：字本身或其部首落在喜用字根者標「生肖喜」（三合、六合生肖的字根，加上本生肖愛吃、愛棲息的部首）；落在忌用字根者標「生肖忌」（沖、害、刑生肖的字根）；兩者同時出現時以忌為先。部首分類以字庫的部首欄為準，此為通行說法，各流派另有細項，僅供選字參考。</p>`}
 function addC(){const c=$('nc').value.trim(),r=$('nr').value.trim()||c,e=+$('ne').value,n=+$('nn').value;if(!c||!n)return;DB.push({c:[...c][0],r:r[0],e,n});run4()}
+function plain(a){const de=a.de,e=i=>E[i],p=(de+4)%5,o=(de+1)%5,c=(de+2)%5,k=(de+3)%5,t=a.sc.reduce((x,y)=>x+y),r=(a.sc[de]+a.sc[p])/t,wk=r<.5,mid=a.L.startsWith('中和');
+ const li=[`<b>先看你是誰：</b>八字裡的日主是「${e(de)}」，可以想成命盤的主角本人，其他的字就是身邊的人與環境，有的幫忙，有的消耗。`,
+ `<b>再看雙方力量：</b>幫手（和自己同類的${e(de)}，以及能生出${e(de)}的${e(p)}）約占 ${(r*100).toFixed(0)}%；壓力（自己要付出的${e(o)}、要掌管的${e(c)}、管著自己的${e(k)}）約占 ${((1-r)*100).toFixed(0)}%。`,
+ wk?`<b>為什麼補${e(a.prim)}、${e(a.sec)}：</b>幫手比壓力少，主角比較吃力，就像一個人手不夠、又要扛很多事。「${e(a.prim)}」能生出「${e(de)}」，等於替你補充後援與資源；「${e(a.sec)}」跟你同類，等於多一個並肩的夥伴。兩個加起來，主角就比較穩。`:
+ `<b>為什麼補${e(a.prim)}、${e(a.sec)}：</b>幫手已經不少，力量太滿容易使不出去，就像水庫太滿需要出水口。「${e(a.prim)}」是你生出來的，讓力量有地方發揮；「${e(a.sec)}」是你能掌握的成果，讓力量變成實際的收穫。`,
+ `<b>為什麼要避開${a.avoid.map(e).join('、')}：</b>${wk?'這些元素會繼續消耗或壓制主角，本來就吃力，再多就更辛苦。':'這些元素只會讓力量更滿，已經夠強，不需要再加。'}`];
+ if(mid)li.push(`<b>提醒：</b>目前接近平衡，只算「${a.L}」，補的方向有但力道不必大，補過頭反而失衡，所以名字不用把元素塞得太滿。`);
+ li.push(`<b>怎麼補：</b>主要靠名字的五格（人格、地格）落在補的五行，其次是名字用字本身的五行。`);
+ return `<div style='background:var(--hi);border-radius:8px;padding:8px 12px;margin:8px 0'><b>白話說明：為什麼要補這些元素</b><ul>${li.map(x=>'<li>'+x+'</li>').join('')}</ul></div>`}
 function fillSn(){const v=SN[$("sn").value];if(v)$("ss").value=v}
 function tsai(S,a,b){ // b undefined => 單名
  const ren=S+a,di=b==null?a+1:a+b,zo=b==null?ren:S+a+b,wa=b==null?2:b+1,t=el(S+1),r=el(ren),d=el(di);
